@@ -32,7 +32,7 @@ from functools import wraps
 from datetime import datetime
 from time import perf_counter
 import torch.nn.functional as F
-from models import custom_models
+from models import custom
 from torchvision import transforms
 from matplotlib import pyplot as plt
 from torchvision.utils import make_grid, save_image
@@ -617,7 +617,7 @@ def resolve_model(data: str, model_name: str):
     device = get_device()
     if CIFAR10 in data:
         if CUSTOM_RESNET in model_name:
-            return custom_models.CUSTOM_RESNET.to(device)
+            return custom.CUSTOM_RESNET_CIFAR10.to(device)
         if RESNET18 in model_name:
             return models.resnet.ResNet18().to(device)
         if RESNET34 in model_name:
