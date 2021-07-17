@@ -17,10 +17,19 @@ bn = nn.BatchNorm2d
 relu = F.relu
 
 
+class LambdaLayer(nn.Module):
+    def __init__(self, lambd):
+        super(LambdaLayer, self).__init__()
+        self.lambd = lambd
+
+    def forward(self, x):
+        return self.lambd(x)
+
+
 class BasicBlock(nn.Module):
     expansion = 1
 
-    def __init__(self, *, in_planes, planes, stride=1):
+    def __init__(self, *, in_planes, planes, stride=1, option='A'):
         super(BasicBlock, self).__init__()
         self.conv1 = conv(
             in_planes, planes, kernel_size=3, stride=stride, padding=1)
@@ -31,11 +40,18 @@ class BasicBlock(nn.Module):
 
         self.shortcut = nn.Sequential()
         if stride != 1 or in_planes != self.expansion * planes:
-            self.shortcut = nn.Sequential(
-                conv(in_planes, self.expansion * planes,
-                     kernel_size=1, stride=stride),
-                bn(self.expansion * planes)
-            )
+            if option == 'A':
+                """
+                For CIFAR10 ResNet paper uses option A, i.e. to use padding instead
+                """
+                self.shortcut = LambdaLayer(lambda x:
+                                            F.pad(x[:, :, ::2, ::2], (0, 0, 0, 0, planes // 4, planes // 4), "constant",
+                                                  0))
+            elif option == 'B':
+                self.shortcut = nn.Sequential(
+                    nn.Conv2d(in_planes, self.expansion * planes, kernel_size=1, stride=stride, bias=False),
+                    nn.BatchNorm2d(self.expansion * planes)
+                )
 
     def forward(self, x):
         out = relu(self.bn1(self.conv1(x)))
@@ -48,10 +64,10 @@ class BasicBlock(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, *, block, num_blocks, num_classes=10, before_linear_dim=4):
+    def __init__(self, *, block, num_blocks, num_classes=10, avg_pool_size=4):
         super().__init__()
         self.in_planes = 64
-        self.before_linear_dim = before_linear_dim
+        self.before_linear_dim = avg_pool_size
 
         self.conv1 = conv(3, 64, kernel_size=3,
                           stride=1, padding=1)
