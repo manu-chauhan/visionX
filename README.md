@@ -17,7 +17,7 @@
 
 3) Extra resources like images or gifs would go under `resources` .
 
-4) `Notebooks` dir will hold all Jupyter Notebooks for experiments and/or well as final runs for presenting results.
+4) `Notebooks` dir will hold all Jupyter Notebooks for experiments and/or final runs for presenting results.
 
 
 ----
