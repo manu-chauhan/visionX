@@ -1,7 +1,7 @@
 # <p align="center">VisionX</p>
 
 
-### <p align="center">Repository for structured and modularised code for various Computer Vision models, for results/metrics, ease of use and out of the box experimentation, work in progress</p>
+### <p align="center">PyTorch based repository for structured and modularised code for various Computer Vision models, for results/metrics, ease of use and out of the box experimentation : `work in progress`</p>
 
 <a href="link" style="text-align: center">
 
@@ -24,5 +24,5 @@
 
 #### Interesting results/experiments:
 
-  -
-  -
+  - 89K and 95K parameter models on Cifar10 with 85%+ validation accuracy - uses augmentation + `groups` param
+  - 93% validation accuracy on Cifar10 with Custom ResNet model - uses augmentation + One Cycle LR

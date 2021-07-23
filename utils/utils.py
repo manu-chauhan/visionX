@@ -26,6 +26,7 @@ import torchvision
 import numpy as np
 from models import *
 from tqdm import tqdm
+from PIL import Image
 import torch.nn as nn
 import albumentations as A
 from functools import wraps
@@ -624,24 +625,66 @@ def resolve_model(data: str, model_name: str):
             return models.resnet.ResNet34().to(device)
 
 
-class LabelSmoothing(nn.Module):
-    """
-    NLL loss with label smoothing.
-    """
-    def __init__(self, smoothing=0.0):
-        """
-        Constructor for the LabelSmoothing module.
-        :param smoothing: label smoothing factor
-        """
-        super(LabelSmoothing, self).__init__()
+class LabelSmoothingLoss(nn.Module):
+    def __init__(self, classes, smoothing=0.0, dim=-1):
+        super(LabelSmoothingLoss, self).__init__()
         self.confidence = 1.0 - smoothing
         self.smoothing = smoothing
+        self.cls = classes
+        self.dim = dim
 
-    def forward(self, x, target):
-        logprobs = torch.nn.functional.log_softmax(x, dim=-1)
+    def forward(self, pred, target):
+        pred = pred.log_softmax(dim=self.dim)
+        with torch.no_grad():
+            # true_dist = pred.data.clone()
+            true_dist = torch.zeros_like(pred)
+            true_dist.fill_(self.smoothing / (self.cls - 1))
+            true_dist.scatter_(1, target.data.unsqueeze(1), self.confidence)
+        return torch.mean(torch.sum(-true_dist * pred, dim=self.dim))
 
-        nll_loss = -logprobs.gather(dim=-1, index=target.unsqueeze(1))
-        nll_loss = nll_loss.squeeze(1)
-        smooth_loss = -logprobs.mean(dim=-1)
-        loss = self.confidence * nll_loss + self.smoothing * smooth_loss
-        return loss.mean()
+
+class Cutout(object):
+    """
+    Implements Cutout regularization as proposed by DeVries and Taylor (2017), https://arxiv.org/pdf/1708.04552.pdf.
+    """
+
+    def __init__(self, num_cutouts, size, p=0.5):
+        """
+        Parameters
+        ----------
+        num_cutouts : int
+            The number of cutouts
+        size : int
+            The size of the cutout
+        p : float (0 <= p <= 1)
+            The probability that a cutout is applied (similar to keep_prob for Dropout)
+        """
+        self.num_cutouts = num_cutouts
+        self.size = size
+        self.p = p
+
+    def __call__(self, img):
+
+        height, width = img.size
+
+        cutouts = np.ones((height, width))
+
+        if np.random.uniform() < 1 - self.p:
+            return img
+
+        for i in range(self.num_cutouts):
+            y_center = np.random.randint(0, height)
+            x_center = np.random.randint(0, width)
+
+            y1 = np.clip(y_center - self.size // 2, 0, height)
+            y2 = np.clip(y_center + self.size // 2, 0, height)
+            x1 = np.clip(x_center - self.size // 2, 0, width)
+            x2 = np.clip(x_center + self.size // 2, 0, width)
+
+            cutouts[y1:y2, x1:x2] = 0
+
+        cutouts = np.broadcast_to(cutouts, (3, height, width))
+        cutouts = np.moveaxis(cutouts, 0, 2)
+        img = np.array(img)
+        img = img * cutouts
+        return Image.fromarray(img.astype('uint8'), 'RGB')
